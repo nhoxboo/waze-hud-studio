@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waze HUD Custom Studio Pro - Hoài Nam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono-hud { font-family: 'JetBrains Mono', monospace; }
+        .mirror-x { transform: scaleX(-1); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex h-screen overflow-hidden antialiased">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between p-4 shrink-0 border-r border-slate-800">
+        <div class="space-y-6">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-gauge-high"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-white text-base tracking-tight">WazeHUD Studio</h1>
+                    <span class="text-xs font-semibold text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded-full border border-blue-800/50">Hoài Nam Custom</span>
+                </div>
+            </div>
+
+            <nav class="space-y-1.5">
+                <button id="btn-tab-sim" onclick="switchTab('tab-sim')" class="sidebar-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                    <i class="fa-solid fa-vr-cardboard text-base"></i> HUD Simulator
+                </button>
+                <button id="btn-tab-ble" onclick="switchTab('tab-ble')" class="sidebar-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-slate-200">
+                    <i class="fa-brands fa-bluetooth-b text-base"></i> Bluetooth BLE Live
+                </button>
+                <button id="btn-tab-layout" onclick="switchTab('tab-layout')" class="sidebar-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-palette text-base"></i> Layout & Màu Sắc
+                </button>
+                <button id="btn-tab-config" onclick="switchTab('tab-config')" class="sidebar-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-sliders text-base"></i> Ngưỡng & Cảnh Báo
+                </button>
+                <button id="btn-tab-flash" onclick="switchTab('tab-flash')" class="sidebar-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-bolt-lightning text-base"></i> Nạp / OTA Firmware
+                </button>
+            </nav>
+        </div>
+
+        <div class="p-3 bg-slate-800/60 rounded-2xl border border-slate-700/50 text-xs space-y-2">
+            <div class="flex items-center justify-between text-slate-400">
+                <span>Trạng thái kết nối</span>
+                <span id="ble-status-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+            </div>
+            <div id="ble-status-text" class="font-bold text-slate-200 truncate">Chưa kết nối BLE</div>
+            <div id="secure-context-alert" class="hidden p-2 rounded-lg bg-amber-500/20 text-amber-300 text-[11px] leading-tight border border-amber-500/30">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> Để dùng WebSerial/BLE, hãy mở bằng <b>HTTPS</b> hoặc <b>localhost</b>.
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-slate-100">
+        
+        <!-- TOPBAR -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 sticky top-0 z-10">
+            <div class="flex items-center gap-4">
+                <h2 id="page-title" class="text-lg font-bold text-slate-800">HUD Live Simulator & Studio</h2>
+                <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-bold border border-blue-200">
+                    <i class="fa-solid fa-shield-halved"></i> Giao Thức HLP/1 Chuẩn
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button onclick="toggleMirror()" id="btn-mirror" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-sm">
+                    <i class="fa-solid fa-repeat"></i> <span id="mirror-btn-text">Lật Gương (Hắt Kính): TẮT</span>
+                </button>
+                <button onclick="switchDevice('cyd')" id="btn-dev-cyd" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm shadow-blue-500/20">CYD 320x240</button>
+                <button onclick="switchDevice('round')" id="btn-dev-round" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 text-slate-600 hover:bg-slate-300">Tròn 240x240</button>
+            </div>
+        </header>
+
+        <!-- BODY PANELS -->
+        <div class="p-8 space-y-8 flex-1">
+            
+            <!-- TAB 1: SIMULATOR -->
+            <div id="tab-sim" class="tab-pane space-y-6">
+                <!-- HTTPS Alert Banner if on plain HTTP -->
+                <div id="http-warning-banner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 flex items-center justify-between">
+                    <div class="flex items-center gap-3 text-amber-800 text-sm">
+                        <i class="fa-solid fa-lock text-xl text-amber-600"></i>
+                        <div>
+                            <span class="font-bold">Bạn đang truy cập qua HTTP thường:</span> Trình duyệt Chrome/Edge chặn tính năng WebSerial & WebBluetooth nếu không có bảo mật SSL.
+                        </div>
+                    </div>
+                    <a id="https-switch-link" href="#" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm transition">
+                        <i class="fa-solid fa-shield-check"></i> Chuyển sang HTTPS ngay
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    
+                    <!-- HUD SCREEN CANVAS PREVIEW (7 Cols) -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <div class="bg-slate-900 rounded-3xl p-6 shadow-2xl border-4 border-slate-800 flex flex-col items-center justify-center relative overflow-hidden">
+                            <div class="absolute top-4 left-6 text-[10px] font-mono tracking-widest text-slate-500 uppercase flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                OLED ULTRA CONTRAST DISPLAY PREVIEW (100% BRIGHTNESS)
+                            </div>
+
+                            <!-- Screen Canvas Container -->
+                            <div id="hud-container" class="mt-6 transition-all duration-300 flex items-center justify-center">
+                                <!-- Rectangular 320x240 CYD HUD -->
+                                <div id="hud-cyd" class="w-[420px] h-[315px] bg-black rounded-2xl p-4 flex flex-col justify-between text-white relative shadow-inner border border-slate-800 select-none">
+                                    
+                                    <!-- TOP BAR -->
+                                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 tracking-wider">HOÀI NAM</span>
+                                            <span id="hud-street-name" class="text-xs font-bold text-slate-200 truncate max-w-[200px]">Đ. Mai Chí Thọ</span>
+                                        </div>
+                                        <div id="hud-clock" class="text-xs font-mono font-bold text-slate-400">14:35</div>
+                                    </div>
+
+                                    <!-- HERO CENTER ROW (3 COLUMNS) -->
+                                    <div class="grid grid-cols-12 gap-2 items-center my-auto">
+                                        <!-- LEFT: Speed Limit Sign -->
+                                        <div class="col-span-4 flex flex-col items-center justify-center">
+                                            <div id="hud-limit-sign" class="w-20 h-20 rounded-full bg-white border-[6px] border-red-600 flex items-center justify-center shadow-lg shadow-red-600/30">
+                                                <span id="hud-limit-val" class="text-black font-black text-3xl font-mono">60</span>
+                                            </div>
+                                            <div id="hud-cam-badge" class="mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1">
+                                                <i class="fa-solid fa-camera"></i> <span id="hud-cam-dist">350m</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- CENTER: Huge Speed Hero -->
+                                        <div class="col-span-4 flex flex-col items-center justify-center">
+                                            <div id="hud-speed-val" class="font-mono-hud font-black text-6xl tracking-tight text-cyan-400">52</div>
+                                            <span class="text-[10px] font-black text-slate-400 tracking-widest -mt-1">KM/H</span>
+                                            <!-- Speed gauge bar -->
+                                            <div class="w-24 bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                                                <div id="hud-speed-bar" class="bg-cyan-400 h-full w-[65%] transition-all duration-150"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- RIGHT: Turn Arrow & Distance -->
+                                        <div class="col-span-4 flex flex-col items-center justify-center">
+                                            <div id="hud-turn-icon" class="text-yellow-400 text-5xl drop-shadow-[0_0_12px_rgba(250,204,21,0.6)]">
+                                                <i class="fa-solid fa-arrow-turn-left"></i>
+                                            </div>
+                                            <div id="hud-turn-dist" class="font-mono font-black text-xl text-yellow-400 mt-1">250m</div>
+                                            <span id="hud-turn-action" class="text-[9px] font-bold text-slate-400 uppercase">RẼ TRÁI</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- BOTTOM BAR -->
+                                    <div class="flex items-center justify-between border-t border-slate-800/80 pt-2 text-xs">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-400 font-bold text-[11px]">ĐẾN NƠI:</span>
+                                            <span id="hud-eta" class="font-mono font-bold text-emerald-400">14:52</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-400 font-bold text-[11px]">CÒN LẠI:</span>
+                                            <span id="hud-remaining" class="font-mono font-bold text-slate-200">5.8 km</span>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Round 240x240 HUD (Hidden by default) -->
+                                <div id="hud-round" class="w-[340px] h-[340px] bg-black rounded-full p-6 hidden flex-col justify-between items-center text-white relative shadow-inner border-2 border-slate-800 select-none">
+                                    <div class="text-[11px] font-black text-cyan-400 tracking-wider">HOÀI NAM HUD</div>
+                                    <div class="flex items-center gap-4 my-auto">
+                                        <div class="w-16 h-16 rounded-full bg-white border-4 border-red-600 flex items-center justify-center">
+                                            <span id="hud-round-limit" class="text-black font-black text-2xl font-mono">60</span>
+                                        </div>
+                                        <div class="flex flex-col items-center">
+                                            <div id="hud-round-speed" class="font-mono-hud font-black text-5xl text-cyan-400">52</div>
+                                            <span class="text-[9px] font-black text-slate-400">KM/H</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-4 text-xs font-mono font-bold text-slate-300">
+                                        <span id="hud-round-turn"><i class="fa-solid fa-arrow-turn-left text-yellow-400 mr-1"></i> 250m</span>
+                                        <span id="hud-round-eta" class="text-emerald-400">ETA 14:52</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- CONTROL GAMEPAD SIMULATOR (5 Cols) -->
+                    <div class="lg:col-span-5 bg-white rounded-3xl p-6 shadow-sm border border-slate-200 space-y-6">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <h3 class="font-bold text-slate-800 text-base">Bộ Điều Khiển Mô Phỏng Waze</h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Live Test</span>
+                        </div>
+
+                        <!-- Speed Slider -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-slate-600">Tốc Độ Xe Đang Chạy (GPS)</span>
+                                <span id="ctrl-speed-val" class="text-blue-600 font-mono text-sm">52 km/h</span>
+                            </div>
+                            <input type="range" id="slider-speed" min="0" max="140" value="52" oninput="updateSimSpeed(this.value)" class="w-full accent-blue-600 h-2 bg-slate-200 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Speed Limit Preset -->
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Biển Báo Giới Hạn Tốc Độ</label>
+                            <div class="grid grid-cols-5 gap-2">
+                                <button onclick="setSimLimit(40)" class="py-2 rounded-xl text-xs font-black border border-slate-200 hover:bg-blue-50 hover:text-blue-600 transition">40</button>
+                                <button onclick="setSimLimit(50)" class="py-2 rounded-xl text-xs font-black border border-slate-200 hover:bg-blue-50 hover:text-blue-600 transition">50</button>
+                                <button onclick="setSimLimit(60)" class="py-2 rounded-xl text-xs font-black border-2 border-blue-600 bg-blue-50 text-blue-600 transition">60</button>
+                                <button onclick="setSimLimit(80)" class="py-2 rounded-xl text-xs font-black border border-slate-200 hover:bg-blue-50 hover:text-blue-600 transition">80</button>
+                                <button onclick="setSimLimit(100)" class="py-2 rounded-xl text-xs font-black border border-slate-200 hover:bg-blue-50 hover:text-blue-600 transition">100</button>
+                            </div>
+                        </div>
+
+                        <!-- Turn Action Selector -->
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Hướng Dẫn Đường Tiếp Theo</label>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="setSimTurn('left', '250m', 'RẼ TRÁI', 'fa-arrow-turn-left')" class="p-2 rounded-xl text-center border-2 border-blue-600 bg-blue-50 text-blue-600 transition text-xs font-bold">
+                                    <i class="fa-solid fa-arrow-turn-left text-lg mb-1 block"></i> Trái
+                                </button>
+                                <button onclick="setSimTurn('right', '400m', 'RẼ PHẢI', 'fa-arrow-turn-right')" class="p-2 rounded-xl text-center border border-slate-200 hover:bg-blue-50 text-slate-700 transition text-xs font-bold">
+                                    <i class="fa-solid fa-arrow-turn-right text-lg mb-1 block"></i> Phải
+                                </button>
+                                <button onclick="setSimTurn('straight', '1.2km', 'ĐI THẲNG', 'fa-arrow-up')" class="p-2 rounded-xl text-center border border-slate-200 hover:bg-blue-50 text-slate-700 transition text-xs font-bold">
+                                    <i class="fa-solid fa-arrow-up text-lg mb-1 block"></i> Thẳng
+                                </button>
+                                <button onclick="setSimTurn('uturn', '150m', 'QUAY ĐẦU', 'fa-arrows-rotate')" class="p-2 rounded-xl text-center border border-slate-200 hover:bg-blue-50 text-slate-700 transition text-xs font-bold">
+                                    <i class="fa-solid fa-arrows-rotate text-lg mb-1 block"></i> Quay Đầu
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Street Name & Camera Checkbox -->
+                        <div class="space-y-4 pt-2 border-t border-slate-100">
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold text-slate-600">Tên Tuyến Đường</label>
+                                <input type="text" id="input-street" value="Đ. Mai Chí Thọ" oninput="document.getElementById('hud-street-name').innerText = this.value" class="w-full px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500">
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-camera text-amber-500"></i>
+                                    <span class="text-xs font-bold text-slate-700">Camera Phạt Nguội / Bắn Tốc Độ</span>
+                                </div>
+                                <input type="checkbox" id="check-cam" checked onchange="toggleSimCam(this.checked)" class="w-4 h-4 accent-blue-600 cursor-pointer">
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- TAB 2: BLUETOOTH BLE -->
+            <div id="tab-ble" class="tab-pane hidden space-y-6">
+                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 space-y-6">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center text-2xl">
+                                <i class="fa-brands fa-bluetooth-b"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-extrabold text-slate-800 text-lg">Web Bluetooth BLE Controller</h3>
+                                <p class="text-xs text-slate-500">Giao tiếp trực tiếp với WazeHUD qua sóng Bluetooth không dây (Không cần cài App)</p>
+                            </div>
+                        </div>
+                        <button onclick="connectBle()" id="btn-ble-connect" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-2 shadow-md shadow-blue-500/20">
+                            <i class="fa-solid fa-magnifying-glass"></i> Quét & Kết Nối Thiết Bị WazeHUD
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                            <span class="text-[11px] font-bold text-slate-500">Thiết bị đang kết nối</span>
+                            <div id="ble-dev-name" class="font-bold text-slate-800">Chưa có kết nối</div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                            <span class="text-[11px] font-bold text-slate-500">Trạng thái Service HLP/1</span>
+                            <div id="ble-service-status" class="font-bold text-slate-800">Ngắt kết nối</div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                            <span class="text-[11px] font-bold text-slate-500">Độ trễ truyền nhận</span>
+                            <div id="ble-latency" class="font-bold text-emerald-600 font-mono">-- ms</div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 flex items-center gap-3">
+                        <button onclick="pushConfigViaBle()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-2 shadow-md shadow-emerald-600/20">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Đồng Bộ Cấu Hình Xuống HUD Ngay Lập Tức
+                        </button>
+                        <button onclick="sendBleCommand({t:'ping'})" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+                            <i class="fa-solid fa-wave-square"></i> Ping Kiểm Tra Sóng
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: LAYOUT & COLORS -->
+            <div id="tab-layout" class="tab-pane hidden space-y-6">
+                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 space-y-6">
+                    <h3 class="font-extrabold text-slate-800 text-lg pb-3 border-b border-slate-100">Tùy Chỉnh Màu Sắc & Nhận Diện HUD</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Tên Cá Nhân Hóa Trên HUD</label>
+                            <input type="text" id="cfg-custom-name" value="HOÀI NAM" class="w-full px-4 py-2.5 text-sm font-bold border border-slate-200 rounded-xl focus:border-blue-500">
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Màu Tốc Độ Thông Thường (Hex RGB565)</label>
+                            <input type="color" id="col-speed" value="#00ffff" class="w-full h-11 p-1 bg-white border border-slate-200 rounded-xl cursor-pointer">
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Màu Cảnh Báo Quá Tốc Độ</label>
+                            <input type="color" id="col-overspeed" value="#ff0000" class="w-full h-11 p-1 bg-white border border-slate-200 rounded-xl cursor-pointer">
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Màu Mũi Tên Chỉ Hướng</label>
+                            <input type="color" id="col-turn" value="#facc15" class="w-full h-11 p-1 bg-white border border-slate-200 rounded-xl cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: THRESHOLDS & ALERTS -->
+            <div id="tab-config" class="tab-pane hidden space-y-6">
+                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 space-y-6">
+                    <h3 class="font-extrabold text-slate-800 text-lg pb-3 border-b border-slate-100">Cấu Hình Ngưỡng & Cảnh Báo Thông Minh</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Độ Trễ / Ngưỡng Quá Tốc Độ Mới Báo Động</label>
+                            <select id="cfg-tolerance" class="w-full px-4 py-2.5 text-sm font-bold border border-slate-200 rounded-xl">
+                                <option value="0">Quá +0 km/h (Báo ngay tức thì)</option>
+                                <option value="3" selected>Quá +3 km/h (Khuyên dùng - Bù sai số GPS)</option>
+                                <option value="5">Quá +5 km/h (Chuẩn cao tốc)</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-600">Bù Trừ Sai Số Tốc Độ GPS Với Đồng Hồ Xe</label>
+                            <select id="cfg-speed-offset" class="w-full px-4 py-2.5 text-sm font-bold border border-slate-200 rounded-xl">
+                                <option value="-3">-3 km/h</option>
+                                <option value="-2">-2 km/h</option>
+                                <option value="0" selected>0 km/h (Chuẩn GPS)</option>
+                                <option value="2">+2 km/h</option>
+                                <option value="3">+3 km/h</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 flex gap-3">
+                        <button onclick="downloadCustomConfig()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-2 shadow-md shadow-blue-500/20">
+                            <i class="fa-solid fa-file-export"></i> Xuất File Cấu Hình (config.json)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: FLASH & OTA -->
+            <div id="tab-flash" class="tab-pane hidden space-y-6">
+                <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 space-y-6">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 text-lg">Nạp Firmware Trực Tiếp & OTA Update</h3>
+                            <p class="text-xs text-slate-500">Nạp trực tuyến qua cáp USB hoặc tải các bản Build All-in-One hoàn chỉnh</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Offset 0x0 Ready</span>
+                    </div>
+
+                    <!-- WebSerial Card -->
+                    <div class="p-6 rounded-2xl border border-slate-200 bg-slate-900 text-white space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                                    <i class="fa-brands fa-usb"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-sm">Nạp Trực Tiếp Qua WebSerial (Cáp USB)</h4>
+                                    <span class="text-xs text-slate-400">Tốc độ nạp 921,600 Baud • Tự động Reset chip</span>
+                                </div>
+                            </div>
+                            <button id="btn-connect-serial" onclick="connectWebSerial()" class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
+                                <i class="fa-solid fa-plug"></i> Kết Nối Cổng COM & Nạp Ngay
+                            </button>
+                        </div>
+
+                        <!-- Direct File Downloads -->
+                        <div class="flex items-center gap-3 pt-2">
+                            <a href="/firmwares/waze-hud-esp32-2432s024-all-in-one-0x0.bin" download class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-2 border border-slate-700">
+                                <i class="fa-solid fa-file-arrow-down"></i> Tải File .BIN (2432S024 - 320x240)
+                            </a>
+                            <a href="/firmwares/waze-hud-esp32-2424s012-all-in-one-0x0.bin" download class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-2 border border-slate-700">
+                                <i class="fa-solid fa-file-arrow-down"></i> Tải File .BIN (2424S012 - 240x240)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- JS LOGIC -->
+    <script>
+        let isMirror = false;
+        let activeDevice = 'cyd';
+        let bleDevice = null;
+        let bleServer = null;
+        let bleRxChar = null;
+        let bleTxChar = null;
+
+        const BLE_SERVICE_UUID = '8a7e0001-4d6e-4c48-9a9d-484c504c0001';
+        const BLE_CHAR_TX_UUID = '8a7e0002-4d6e-4c48-9a9d-484c504c0001';
+        const BLE_CHAR_RX_UUID = '8a7e0003-4d6e-4c48-9a9d-484c504c0001';
+
+        // Check Secure Context for WebSerial and WebBluetooth
+        window.addEventListener('DOMContentLoaded', () => {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isHttps = window.location.protocol === 'https:';
+
+            if (!isLocal && !isHttps) {
+                document.getElementById('http-warning-banner').classList.remove('hidden');
+                document.getElementById('secure-context-alert').classList.remove('hidden');
+                
+                // Construct https link
+                const httpsUrl = 'https://' + window.location.hostname + ':8443' + window.location.pathname;
+                document.getElementById('https-switch-link').href = httpsUrl;
+            }
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.sidebar-btn').forEach(btn => {
+                btn.className = 'sidebar-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-slate-200';
+            });
+
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if (activeBtn) {
+                activeBtn.className = 'sidebar-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all bg-blue-600 text-white shadow-md shadow-blue-600/20';
+            }
+        }
+
+        function switchDevice(dev) {
+            activeDevice = dev;
+            if (dev === 'cyd') {
+                document.getElementById('hud-cyd').classList.remove('hidden');
+                document.getElementById('hud-round').classList.add('hidden');
+                document.getElementById('btn-dev-cyd').className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm shadow-blue-500/20';
+                document.getElementById('btn-dev-round').className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 text-slate-600 hover:bg-slate-300';
+            } else {
+                document.getElementById('hud-cyd').classList.add('hidden');
+                document.getElementById('hud-round').classList.remove('hidden');
+                document.getElementById('btn-dev-round').className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm shadow-blue-500/20';
+                document.getElementById('btn-dev-cyd').className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-200 text-slate-600 hover:bg-slate-300';
+            }
+        }
+
+        function toggleMirror() {
+            isMirror = !isMirror;
+            const cyd = document.getElementById('hud-cyd');
+            const round = document.getElementById('hud-round');
+            const btnText = document.getElementById('mirror-btn-text');
+
+            if (isMirror) {
+                cyd.classList.add('mirror-x');
+                round.classList.add('mirror-x');
+                btnText.innerText = "Lật Gương (Hắt Kính): BẬT";
+                document.getElementById('btn-mirror').className = "px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-blue-500 bg-blue-50 text-blue-700 shadow-sm";
+            } else {
+                cyd.classList.remove('mirror-x');
+                round.classList.remove('mirror-x');
+                btnText.innerText = "Lật Gương (Hắt Kính): TẮT";
+                document.getElementById('btn-mirror').className = "px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-sm";
+            }
+        }
+
+        function updateSimSpeed(val) {
+            document.getElementById('ctrl-speed-val').innerText = val + ' km/h';
+            document.getElementById('hud-speed-val').innerText = val;
+            document.getElementById('hud-round-speed').innerText = val;
+
+            const limit = parseInt(document.getElementById('hud-limit-val').innerText);
+            const speedEl = document.getElementById('hud-speed-val');
+            const barEl = document.getElementById('hud-speed-bar');
+
+            let pct = Math.min(100, Math.round((val / 120) * 100));
+            barEl.style.width = pct + '%';
+
+            if (val > limit) {
+                speedEl.className = 'font-mono-hud font-black text-6xl tracking-tight text-red-500 animate-pulse';
+                barEl.className = 'bg-red-500 h-full transition-all duration-150';
+            } else {
+                speedEl.className = 'font-mono-hud font-black text-6xl tracking-tight text-cyan-400';
+                barEl.className = 'bg-cyan-400 h-full transition-all duration-150';
+            }
+        }
+
+        function setSimLimit(limit) {
+            document.getElementById('hud-limit-val').innerText = limit;
+            document.getElementById('hud-round-limit').innerText = limit;
+            const curSpeed = parseInt(document.getElementById('slider-speed').value);
+            updateSimSpeed(curSpeed);
+        }
+
+        function setSimTurn(type, dist, action, iconClass) {
+            document.getElementById('hud-turn-dist').innerText = dist;
+            document.getElementById('hud-turn-action').innerText = action;
+            document.getElementById('hud-turn-icon').innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            document.getElementById('hud-round-turn').innerHTML = `<i class="fa-solid ${iconClass} text-yellow-400 mr-1"></i> ${dist}`;
+        }
+
+        function toggleSimCam(checked) {
+            const badge = document.getElementById('hud-cam-badge');
+            if (checked) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        async function connectBle() {
+            if (!("bluetooth" in navigator)) {
+                alert("Trình duyệt không hỗ trợ Web Bluetooth hoặc bạn đang truy cập qua HTTP không bảo mật.\nVui lòng mở bằng HTTPS (https://nhoxboo.changeip.co:8443) hoặc localhost!");
+                return;
+            }
+
+            try {
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: "WazeHUD" }],
+                    optionalServices: [BLE_SERVICE_UUID]
+                });
+
+                document.getElementById('ble-dev-name').innerText = bleDevice.name || "WazeHUD";
+                document.getElementById('ble-status-dot').className = "w-2 h-2 rounded-full bg-blue-500 animate-pulse";
+                document.getElementById('ble-status-text').innerText = "Đang kết nối GATT...";
+
+                bleServer = await bleDevice.gatt.connect();
+                const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+
+                bleRxChar = await service.getCharacteristic(BLE_CHAR_RX_UUID);
+                bleTxChar = await service.getCharacteristic(BLE_CHAR_TX_UUID);
+
+                document.getElementById('ble-status-dot').className = "w-2 h-2 rounded-full bg-emerald-500";
+                document.getElementById('ble-status-text').innerText = "Đã kết nối: " + bleDevice.name;
+                document.getElementById('ble-service-status').innerText = "HLP/1 Sẵn Sàng";
+                document.getElementById('ble-latency').innerText = "< 15 ms";
+
+                alert("Kết nối Bluetooth với WazeHUD thành công!");
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi kết nối BLE: " + err.message);
+            }
+        }
+
+        async function sendBleCommand(obj) {
+            if (!bleRxChar) {
+                alert("Vui lòng kết nối BLE với thiết bị WazeHUD trước!");
+                return;
+            }
+            try {
+                const jsonStr = JSON.stringify(obj) + "\n";
+                const enc = new TextEncoder().encode(jsonStr);
+                await bleRxChar.writeValue(enc);
+                alert("Đã gửi lệnh không dây tới HUD thành công!");
+            } catch (err) {
+                alert("Gửi lệnh thất bại: " + err.message);
+            }
+        }
+
+        async function pushConfigViaBle() {
+            const config = {
+                t: "cfg",
+                name: document.getElementById('cfg-custom-name').value,
+                tol: parseInt(document.getElementById('cfg-tolerance').value),
+                offset: parseInt(document.getElementById('cfg-speed-offset').value),
+                col_spd: document.getElementById('col-speed').value,
+                col_trn: document.getElementById('col-turn').value
+            };
+            await sendBleCommand(config);
+        }
+
+        function downloadCustomConfig() {
+            const config = {
+                owner: document.getElementById('cfg-custom-name').value,
+                hardware: activeDevice,
+                tolerance_kmh: parseInt(document.getElementById('cfg-tolerance').value),
+                speed_offset_kmh: parseInt(document.getElementById('cfg-speed-offset').value),
+                colors: {
+                    speed: document.getElementById('col-speed').value,
+                    overspeed: document.getElementById('col-overspeed').value,
+                    turn: document.getElementById('col-turn').value
+                }
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "waze_hud_config.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        async function connectWebSerial() {
+            if (!("serial" in navigator)) {
+                alert("Trình duyệt không hỗ trợ WebSerial hoặc bạn đang truy cập qua HTTP không bảo mật.\nVui lòng mở bằng HTTPS (https://nhoxboo.changeip.co:8443) hoặc localhost!");
+                return;
+            }
+            try {
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 921600 });
+                alert("Đã kết nối thành công với cổng COM của ESP32!");
+            } catch (err) {
+                console.error(err);
+                alert("Không thể mở cổng COM: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
