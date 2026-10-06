@@ -1,0 +1,16 @@
+{
+  "name": "Waze HUD ESP32-2432S024 (CYD 2.4\")",
+  "version": "2.5.0",
+  "new_install_prompt_erase": false,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "firmwares/waze-hud-esp32-2432s024-all-in-one-0x0.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

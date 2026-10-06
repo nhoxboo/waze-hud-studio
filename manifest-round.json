@@ -1,0 +1,16 @@
+{
+  "name": "Waze HUD ESP32-2424S012 (Round 1.28\")",
+  "version": "2.5.0",
+  "new_install_prompt_erase": false,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        {
+          "path": "firmwares/waze-hud-esp32-2424s012-all-in-one-0x0.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
